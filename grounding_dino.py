@@ -3,8 +3,8 @@
 # Step 1 - Basic Files.
 from typing import Literal, Union
 from pydantic import Field
-from .baseinvocation import BaseInvocation, InvocationContext
-from .image import ImageField, ImageOutput, ImageType
+from invokeai.app.invocations.baseinvocation import BaseInvocation, InvocationContext
+from invokeai.app.invocations.image import ImageField, ImageOutput, ImageType
 
 # Step 2 - Take libraries straight from the demo. We don't need all of them, and we'll clean them up later.
 import argparse
@@ -15,14 +15,13 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-import groundingdino.datasets.transforms as T
-from groundingdino.models import build_model
-from groundingdino.util import box_ops
-from groundingdino.util.slconfig import SLConfig
-from groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
+from .GroundingDINO.groundingdino.datasets import transforms as T
+from .GroundingDINO.groundingdino.models import build_model
+from .GroundingDINO.groundingdino.util import box_ops
+from .GroundingDINO.groundingdino.util.slconfig import SLConfig
+from .GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
 
 from torchvision import transforms
-
 
 class SegmentedGrayscale(object):
     def __init__(self, image: Image, heatmap: torch.Tensor):

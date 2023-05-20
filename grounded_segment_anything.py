@@ -10,8 +10,8 @@
 # cd Tag2Text && pip install -r requirements.txt
 from typing import Literal
 from pydantic import Field
-from .baseinvocation import BaseInvocation, InvocationContext
-from .image import ImageField, ImageOutput, ImageType
+from invokeai.app.invocations.baseinvocation import BaseInvocation, InvocationContext
+from invokeai.app.invocations.image import ImageField, ImageOutput, ImageType
 
 import cv2
 import numpy as np
@@ -20,8 +20,8 @@ from typing import List
 
 import torch
 
-from groundingdino.util.inference import Model
-from segment_anything import sam_model_registry, SamPredictor
+from .GroundingDINO.groundingdino.util.inference import Model
+from .segment_anything import sam_model_registry, SamPredictor
 
 class GroundedSegmentAnythingInvocation(BaseInvocation):
     """Use grounded segment anything to make a mask - https://github.com/IDEA-Research/Grounded-Segment-Anything"""
