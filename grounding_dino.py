@@ -238,4 +238,4 @@ class GroundingDinoInvocation(BaseInvocation):
 
         context.services.images.save(
             image_type, image_name, output_mask, metadata)
-        return ImageOutput(image=ImageField(image_type=image_type, image_name=image_name))
+        return ImageOutput(image=ImageField(image_type=image_type, image_name=image_name), width=512, height=512)

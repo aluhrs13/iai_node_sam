@@ -1,3 +1,5 @@
+# Apache
+# Based on https://github.com/IDEA-Research/Grounded-Segment-Anything/blob/08c6b6118eb203bdeefd154203766f1053d03f5a/automatic_label_simple_demo.py
 # Step 1 - Mostly copy/pasting things into the right places:
 #    - Imports at the top
 #    - Args into inputs
@@ -7,7 +9,28 @@
 # python -m pip install -e segment_anything
 # python -m pip install -e GroundingDINO
 # git submodule update --init --recursive
-# cd Tag2Text && pip install -r requirements.txt
+
+"""
+Note: Had to modify line 243 of groundingdino/util/inference.py to:
+    class_ids.append(0)
+instead of:
+    class_ids.append(none)
+
+Because it was tagging some as None and hitting an error:
+    "Traceback (most recent call last):
+    File "D:\StableDiffusion\InvokeAI\invokeai\app\services\processor.py", line 70, in __process
+        outputs = invocation.invoke(
+    File "D:\StableDiffusion\InvokeAI\invokeai\app\extensions\iai_node_sam\grounded_segment_anything.py", line 90, in invoke
+        labels = [
+    File "D:\StableDiffusion\InvokeAI\invokeai\app\extensions\iai_node_sam\grounded_segment_anything.py", line 91, in <listcomp>
+        f"{CLASSES[class_id]} {confidence:0.2f}"
+    TypeError: list indices must be integers or slices, not NoneType
+    "
+
+So index 0 is now always "Unknown" and I think it happens when a box applies to multiple classes?
+
+"""
+
 from typing import Literal
 from pydantic import Field
 from invokeai.app.invocations.baseinvocation import BaseInvocation, InvocationContext
@@ -19,9 +42,10 @@ import supervision as sv
 from typing import List
 
 import torch
+import torchvision
 
 from .GroundingDINO.groundingdino.util.inference import Model
-from .segment_anything import sam_model_registry, SamPredictor
+from .segment_anything.segment_anything import sam_model_registry, SamPredictor
 
 class GroundedSegmentAnythingInvocation(BaseInvocation):
     """Use grounded segment anything to make a mask - https://github.com/IDEA-Research/Grounded-Segment-Anything"""
@@ -69,10 +93,10 @@ class GroundedSegmentAnythingInvocation(BaseInvocation):
 
         # Predict classes and hyper-param for GroundingDINO
         SOURCE_IMAGE_PATH = "D:\\StableDiffusion\\Outputs\\images\\results\\Background1.JPG"
-        CLASSES = ['door', 'poster', 'bookshelf', 'picture']
+        CLASSES = ['unknown', 'door', 'bookshelf', 'picture', 'toy']
         BOX_THRESHOLD = 0.35
         TEXT_THRESHOLD = 0.25
-
+        NMS_THRESHOLD = 0.8
 
         # load image
         image = cv2.imread(SOURCE_IMAGE_PATH)
@@ -82,7 +106,7 @@ class GroundedSegmentAnythingInvocation(BaseInvocation):
             image=image,
             classes=CLASSES,
             box_threshold=BOX_THRESHOLD,
-            text_threshold=BOX_THRESHOLD
+            text_threshold=TEXT_THRESHOLD
         )
 
         # annotate image with detections
@@ -96,6 +120,19 @@ class GroundedSegmentAnythingInvocation(BaseInvocation):
         # save the annotated grounding dino image
         cv2.imwrite("groundingdino_annotated_image.jpg", annotated_frame)
 
+        # NMS post process
+        print(f"Before NMS: {len(detections.xyxy)} boxes")
+        nms_idx = torchvision.ops.nms(
+            torch.from_numpy(detections.xyxy), 
+            torch.from_numpy(detections.confidence), 
+            NMS_THRESHOLD
+        ).numpy().tolist()
+
+        detections.xyxy = detections.xyxy[nms_idx]
+        detections.confidence = detections.confidence[nms_idx]
+        detections.class_id = detections.class_id[nms_idx]
+
+        print(f"After NMS: {len(detections.xyxy)} boxes")
 
         # Prompting SAM with detected boxes
         def segment(sam_predictor: SamPredictor, image: np.ndarray, xyxy: np.ndarray) -> np.ndarray:
