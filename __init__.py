@@ -1,2 +1,3 @@
 from .grounded_segment_anything import GroundedSegmentAnythingInvocation
 from .grounding_dino import GroundingDinoInvocation
+from .segment_anything_node import SegmentAnythingInvocation
