@@ -21,23 +21,20 @@ Because it was tagging some as None and hitting an error:
     "
 
 So index 0 is now always "Unknown" and I think it happens when a box applies to multiple classes?
-
 """
 
-from typing import Literal
+from PIL import Image as im
 from pydantic import Field
-from invokeai.app.invocations.baseinvocation import BaseInvocation, InvocationContext
-from invokeai.app.invocations.image import ImageField, ImageOutput, ImageType
+from typing import Literal
 
 import cv2
 import numpy as np
 import supervision as sv
-from PIL import Image as im
-
-
 import torch
 import torchvision
 
+from invokeai.app.invocations.baseinvocation import BaseInvocation, InvocationContext
+from invokeai.app.invocations.image import ImageField, ImageOutput, ImageType
 from .GroundingDINO.groundingdino.util.inference import Model
 from .segment_anything.segment_anything import sam_model_registry, SamPredictor
 
@@ -81,18 +78,6 @@ class GroundedSegmentAnythingInvocation(BaseInvocation):
             text_threshold=self.text_threshold
         )
 
-        # annotate image with detections
-        box_annotator = sv.BoxAnnotator()
-        labels = [
-            f"{CLASSES[class_id]} {confidence:0.2f}"
-            for _, _, confidence, class_id, _
-            in detections]
-        annotated_frame = box_annotator.annotate(
-            scene=init_image.copy(), detections=detections, labels=labels)
-
-        # save the annotated grounding dino image
-        cv2.imwrite("groundingdino_annotated_image.jpg", annotated_frame)
-
         # NMS post process
         nms_idx = torchvision.ops.nms(
             torch.from_numpy(detections.xyxy),
@@ -124,21 +109,27 @@ class GroundedSegmentAnythingInvocation(BaseInvocation):
             xyxy=detections.xyxy
         )
 
+        # TODO: Save mask without labels separately
         # annotate image with detections
-        box_annotator = sv.BoxAnnotator()
         mask_annotator = sv.MaskAnnotator()
-        labels = [
-            f"{CLASSES[class_id]} {confidence:0.2f}"
-            for _, _, confidence, class_id, _
-            in detections]
         annotated_image = mask_annotator.annotate(
             scene=init_image.copy(), detections=detections)
-        annotated_image = box_annotator.annotate(
-            scene=annotated_image, detections=detections, labels=labels)
 
-        # save the annotated grounded-sam image
-        cv2.imwrite("grounded_sam_annotated_image.jpg", annotated_image)
+        # loop through all the detections and make an image for each
+        # TODO: NOT WORKING
+        for i in range(len(detections)):
+            # save the mask
+            image_type = ImageType.INTERMEDIATE
+            image_name = context.services.images.create_name(
+                context.graph_execution_state_id, self.id +
+                "_"+CLASSES[detections.class_id[i]]+"_"
+            )
 
+            ret_image = im.fromarray(detections.mask[i])
+            context.services.images.save(
+                image_type, image_name, ret_image)
+
+        # save the annotated image
         image_type = ImageType.INTERMEDIATE
         image_name = context.services.images.create_name(
             context.graph_execution_state_id, self.id

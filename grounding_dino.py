@@ -1,5 +1,4 @@
 # Step-by-step migrating GroundingDINO from https://github.com/IDEA-Research/GroundingDINO/blob/main/demo/inference_on_a_image.py
-# Reqs:pip install nw-groundingdino
 # Step 1 - Basic Files.
 from typing import Literal, Union
 from pydantic import Field
